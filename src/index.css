@@ -1,0 +1,13 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #0F141C;
+  color: #E9E4D8;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid #D9A441; outline-offset: 2px; }
+input { font-family: inherit; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
