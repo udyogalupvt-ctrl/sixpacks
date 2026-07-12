@@ -1,0 +1,24 @@
+# Free cron that triggers the reminder push endpoint every 15 minutes.
+# After deploying to Vercel, add two GitHub repo secrets
+# (Settings -> Secrets and variables -> Actions):
+#   REMINDER_URL  = https://<your-app>.vercel.app/api/send-reminders
+#   CRON_SECRET   = the same value you set in Vercel env vars
+name: reminders
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder push
+        run: |
+          if [ -z "$REMINDER_URL" ]; then
+            echo "REMINDER_URL secret not set - skipping (see README push setup)"
+            exit 0
+          fi
+          curl -fsS --max-time 60 "$REMINDER_URL" -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          REMINDER_URL: ${{ secrets.REMINDER_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

@@ -145,7 +145,12 @@ export const phaseOf = (dt) => {
 export const fmtDate = (dt) =>
   dt.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
-export const emptyDay = () => ({ meals: {}, gym: {}, fight: {}, water: 0, weight: "" });
+export const emptyDay = () => ({ meals: {}, gym: {}, fight: {}, water: 0, weight: "", gymWeights: {} });
+
+// Stable Firestore-safe key for an exercise name (used to log kg per lift
+// and to look up the last weight used across days/phases).
+export const slugOf = (name) =>
+  name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
 // ---------- per-day session item lists ----------
 // Gym session items (lifts + cardio) for a given date. Header rows have id: null.

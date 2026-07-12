@@ -3,10 +3,11 @@ import { C, FONT_DISPLAY, FONT_BODY } from "../theme";
 import {
   TOTAL_DAYS, PROTEIN_TARGET, WATER_TARGET, FIGHT_DAYS,
   WORKOUTS, FIGHT, buildMeals,
-  toKey, clampDate, dayNumber, phaseOf, fmtDate, emptyDay,
+  toKey, clampDate, dayNumber, phaseOf, fmtDate, emptyDay, slugOf,
   gymItemsFor, fightItemsFor, isDayComplete,
 } from "../plan";
 import { Card, Stat, NavBtn, CheckRow, SectionLabel } from "./ui";
+import SectionImage from "./SectionImage";
 
 const parseKey = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
 
@@ -36,15 +37,27 @@ export default function GrindLog({ profile, save }) {
   const fightDoneCount = fightIds.filter((id) => rec.fight?.[id]).length;
   const fightAllDone = fightIds.length > 0 && fightDoneCount === fightIds.length;
 
-  const update = (patch) => {
-    const nextRec = { ...rec, ...patch };
-    save({ days: { [key]: nextRec } });
-  };
-  const toggleMeal = (id) => update({ meals: { ...rec.meals, [id]: !rec.meals?.[id] } });
-  const toggleGym = (id) => update({ gym: { ...rec.gym, [id]: !rec.gym?.[id] } });
-  const toggleFight = (id) => update({ fight: { ...rec.fight, [id]: !rec.fight?.[id] } });
-  const markAllGym = () => update({ gym: Object.fromEntries(gymIds.map((id) => [id, !gymAllDone])) });
-  const markAllFight = () => update({ fight: Object.fromEntries(fightIds.map((id) => [id, !fightAllDone])) });
+  // Granular merge writes: only the touched field is sent, so debounced
+  // inputs and rapid taps can never clobber each other with stale data.
+  const patchDay = (patch) => save({ days: { [key]: patch } });
+  const toggleMeal = (id) => patchDay({ meals: { [id]: !rec.meals?.[id] } });
+  const toggleGym = (id) => patchDay({ gym: { [id]: !rec.gym?.[id] } });
+  const toggleFight = (id) => patchDay({ fight: { [id]: !rec.fight?.[id] } });
+  const markAllGym = () => patchDay({ gym: Object.fromEntries(gymIds.map((id) => [id, !gymAllDone])) });
+  const markAllFight = () => patchDay({ fight: Object.fromEntries(fightIds.map((id) => [id, !fightAllDone])) });
+
+  // Last weight used per exercise on any earlier day (progressive overload reference).
+  const lastWeights = {};
+  Object.entries(days)
+    .filter(([k]) => k < key)
+    .sort((a, b) => (a[0] > b[0] ? -1 : 1))
+    .forEach(([, r]) => {
+      Object.entries(r.gymWeights || {}).forEach(([slug, w]) => {
+        if (!(slug in lastWeights) && w !== "" && w != null) lastWeights[slug] = w;
+      });
+    });
+
+  const sectionImages = profile?.sectionImages || {};
 
   // ----- stats across all logged days -----
   const today = clampDate(new Date());
@@ -145,7 +158,12 @@ export default function GrindLog({ profile, save }) {
       <Card>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <SectionLabel>GYM SESSION {gymIds.length > 0 && <span style={{ color: gymAllDone ? C.green : C.dim }}>· {gymDoneCount}/{gymIds.length}</span>}</SectionLabel>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <SectionLabel>GYM SESSION {gymIds.length > 0 && <span style={{ color: gymAllDone ? C.green : C.dim }}>· {gymDoneCount}/{gymIds.length}</span>}</SectionLabel>
+              {!workout.rest && (
+                <SectionImage imgKey={`gym-${workout.key}`} url={sectionImages[`gym-${workout.key}`]} save={save} label={`${workout.name} session`} />
+              )}
+            </div>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, marginTop: 4, color: workout.rest ? C.dim : C.bone }}>
               {workout.name}
             </div>
@@ -176,20 +194,33 @@ export default function GrindLog({ profile, save }) {
             </button>
             {showLifts && (
               <div style={{ marginTop: 6, borderTop: `1px solid ${C.line}`, paddingTop: 2 }}>
-                {gymItems.map((item, i) =>
-                  item.id === null ? (
-                    <div key={`h${i}`} style={{ fontSize: 10, letterSpacing: "0.2em", color: C.ember, fontWeight: 700, margin: "12px 0 0" }}>{item.header}</div>
-                  ) : (
-                    <CheckRow
-                      key={item.id}
-                      done={!!rec.gym?.[item.id]}
-                      onToggle={() => toggleGym(item.id)}
-                      title={item.name}
-                      sub={item.sub}
-                      right={item.sets}
-                    />
-                  )
-                )}
+                {gymItems.map((item, i) => {
+                  if (item.id === null) {
+                    return <div key={`h${i}`} style={{ fontSize: 10, letterSpacing: "0.2em", color: C.ember, fontWeight: 700, margin: "12px 0 0" }}>{item.header}</div>;
+                  }
+                  const slug = slugOf(item.name);
+                  return (
+                    <div key={item.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <CheckRow
+                          done={!!rec.gym?.[item.id]}
+                          onToggle={() => toggleGym(item.id)}
+                          title={item.name}
+                          sub={item.sub}
+                          right={item.sets}
+                        />
+                      </div>
+                      {item.id !== "cardio" && (
+                        <KgInput
+                          key={`${key}-${slug}`}
+                          value={rec.gymWeights?.[slug] ?? ""}
+                          last={lastWeights[slug]}
+                          onSave={(v) => patchDay({ gymWeights: { [slug]: v } })}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 <div style={{ fontSize: 11, color: C.dim, marginTop: 10 }}>
                   Overload rule: hit the top reps on all sets → +2.5 kg next time. Cardio counts — don't skip the treadmill.
                 </div>
@@ -204,7 +235,10 @@ export default function GrindLog({ profile, save }) {
         <Card highlight>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <SectionLabel color={C.ember}>🥊 FIGHT TRAINING · {fightDoneCount}/{fightIds.length}</SectionLabel>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <SectionLabel color={C.ember}>🥊 FIGHT TRAINING · {fightDoneCount}/{fightIds.length}</SectionLabel>
+                <SectionImage imgKey={`fight-${phase.n}`} url={sectionImages[`fight-${phase.n}`]} save={save} label={fight.title} />
+              </div>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, marginTop: 4 }}>{fight.title}</div>
             </div>
             <button
@@ -236,11 +270,14 @@ export default function GrindLog({ profile, save }) {
 
       {/* ---- meals ---- */}
       <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <SectionLabel>
-            MEALS — {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][dow]} (dairy-free)
-          </SectionLabel>
-          <div style={{ fontSize: 12, color: C.dim }}>{kcalIn} kcal logged</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <SectionLabel>
+              MEALS — {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][dow]} (dairy-free)
+            </SectionLabel>
+            <SectionImage imgKey={`meals-${dow}`} url={sectionImages[`meals-${dow}`]} save={save} label={`${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dow]} meals`} />
+          </div>
+          <div style={{ fontSize: 12, color: C.dim, flexShrink: 0 }}>{kcalIn} kcal logged</div>
         </div>
         {meals.map((m) => (
           <CheckRow
@@ -279,7 +316,7 @@ export default function GrindLog({ profile, save }) {
               <button
                 key={i}
                 aria-label={`Glass ${i + 1}`}
-                onClick={() => update({ water: filled && i === (rec.water || 0) - 1 ? i : i + 1 })}
+                onClick={() => patchDay({ water: filled && i === (rec.water || 0) - 1 ? i : i + 1 })}
                 style={{
                   width: 40, height: 48, borderRadius: "6px 6px 10px 10px",
                   border: `2px solid ${filled ? C.blue : C.line}`,
@@ -300,7 +337,7 @@ export default function GrindLog({ profile, save }) {
           {dow === 6 ? "★ SATURDAY WEIGH-IN (empty stomach)" : "WEIGHT (optional — Saturdays official)"}
         </SectionLabel>
         <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center" }}>
-          <WeightInput key={key} value={rec.weight} onSave={(w) => update({ weight: w })} />
+          <WeightInput key={key} value={rec.weight} onSave={(w) => patchDay({ weight: w })} />
           <span style={{ fontSize: 13, color: C.dim }}>kg · target 72–74</span>
         </div>
         {weights.length > 0 && (
@@ -336,6 +373,43 @@ export default function GrindLog({ profile, save }) {
         Never miss two in a row. Discipline &gt; motivation.<br />
         If any pain feels sharp (not sore), rest it and see a doctor — heroes recover, they don't break.<br />
         Progress syncs to your account — log in anywhere and it's all there.
+      </div>
+    </div>
+  );
+}
+
+// Small per-exercise kg input next to each lift. Placeholder shows the
+// last weight used for the same exercise so progressive overload is obvious.
+function KgInput({ value, last, onSave }) {
+  const [local, setLocal] = useState(value ?? "");
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const change = (v) => {
+    setLocal(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => onSave(v), 700);
+  };
+  const flush = () => { clearTimeout(timer.current); onSave(local); };
+
+  return (
+    <div style={{ marginTop: 10, flexShrink: 0, width: 62 }}>
+      <input
+        type="number" inputMode="decimal" step="0.5" min="0"
+        placeholder={last != null ? String(last) : "kg"}
+        aria-label="Weight used (kg)"
+        value={local}
+        onChange={(e) => change(e.target.value)}
+        onBlur={flush}
+        onKeyDown={(e) => e.key === "Enter" && flush()}
+        style={{
+          width: "100%", background: C.panel2, border: `1px solid ${local !== "" ? C.gold : C.line}`,
+          borderRadius: 8, color: C.bone, padding: "10px 6px", fontSize: 14,
+          fontFamily: FONT_BODY, textAlign: "center",
+        }}
+      />
+      <div style={{ fontSize: 8, color: C.dim, textAlign: "center", marginTop: 2, letterSpacing: "0.05em" }}>
+        {last != null ? `LAST ${last}` : "KG"}
       </div>
     </div>
   );

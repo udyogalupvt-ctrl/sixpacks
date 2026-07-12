@@ -6,6 +6,9 @@ import { C, FONT_BODY, FONT_DISPLAY } from "./theme";
 import AuthScreen from "./components/AuthScreen";
 import GrindLog from "./components/GrindLog";
 import Transform from "./components/Transform";
+import Reminders from "./components/Reminders";
+import useReminders from "./useReminders";
+import { registerSW } from "./push";
 
 const saveErrText = (e) =>
   e?.code === "permission-denied"
@@ -18,9 +21,16 @@ export default function App() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [tab, setTab] = useState("today");
   const [saveErr, setSaveErr] = useState("");
+  const [showReminders, setShowReminders] = useState(false);
   const initialized = useRef(false);
 
   useEffect(() => onAuthStateChanged(auth, (u) => setUser(u)), []);
+
+  // Reminder engine (start + not-marked-done alerts while the app is open).
+  useReminders(profile);
+
+  // Service worker powers background push + notification display.
+  useEffect(() => { if (user) registerSW(); }, [user]);
 
   // Live-sync the user's document (all progress lives in users/{uid}).
   useEffect(() => {
@@ -75,13 +85,25 @@ export default function App() {
         <div style={{ fontSize: 11, letterSpacing: "0.25em", color: C.dim, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           GRIND LOG — <span style={{ color: C.gold }}>{name}</span>
         </div>
-        <button
-          onClick={() => signOut(auth)}
-          style={{ background: "none", border: `1px solid ${C.line}`, color: C.dim, borderRadius: 6, padding: "4px 10px", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", fontFamily: FONT_BODY, flexShrink: 0, marginLeft: 10 }}
-        >
-          SIGN OUT
-        </button>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 10 }}>
+          <button
+            onClick={() => setShowReminders(true)}
+            aria-label="Reminders"
+            title="Reminders"
+            style={{ background: "none", border: `1px solid ${C.line}`, color: C.dim, borderRadius: 6, padding: "4px 9px", fontSize: 12, fontFamily: FONT_BODY }}
+          >
+            🔔
+          </button>
+          <button
+            onClick={() => signOut(auth)}
+            style={{ background: "none", border: `1px solid ${C.line}`, color: C.dim, borderRadius: 6, padding: "4px 10px", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", fontFamily: FONT_BODY }}
+          >
+            SIGN OUT
+          </button>
+        </div>
       </div>
+
+      {showReminders && <Reminders user={user} onClose={() => setShowReminders(false)} />}
 
       {/* active page */}
       <div style={{ paddingBottom: 86 }}>

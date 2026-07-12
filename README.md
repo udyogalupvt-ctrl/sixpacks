@@ -3,12 +3,22 @@
 185-day lift + fight transformation tracker (Jul 12 2026 → Jan 12 2027).
 Mobile-first. Every user gets their own account and their own data.
 
-**Tracked daily:** gym session (every lift + treadmill cardio), fight training (every drill),
-meals (dairy-free plan), water (4 L), weight (optional). A day only counts toward your
-streak/adherence when meals + gym + fight (on fight days) + water are ALL done.
+**Tracked daily:** gym session (every lift + treadmill cardio, with the kg you lifted —
+the input shows the last weight you used so progressive overload is obvious), fight
+training (every drill), meals (dairy-free plan), water (4 L), weight (optional).
+A day only counts toward your streak/adherence when meals + gym + fight (on fight days)
++ water are ALL done.
 
 **Transform tab:** upload one photo per month (Jul '26 → Jan '27) and photos of your three
 ideals (Gapryong Kim, Gun Park, James Lee) — compare yourself against them every day.
+Each Gym / Fight / Meals card also has a tiny 🖼 icon to attach an AI-generated
+visualization image (tap to view / replace / remove).
+
+**Reminders (🔔 in the top bar):** built around the founder schedule — fight training
+06:30 (Mon/Wed/Fri), meals through the day, work 10–6, gym 18:00–21:00 (Mon–Sat),
+day-check 22:30. You get a notification when a task starts, and a call-out when its
+window ends without being marked done in the app. Every entry can also be added to
+Google Calendar (single tap) or imported all at once via the .ics download.
 
 ## Stack
 
@@ -40,6 +50,28 @@ npm run dev
 Cloud name and an **unsigned upload preset** are read from `.env`. If you create a new
 preset, set *Signing mode: Unsigned* in Cloudinary → Settings → Upload → Upload presets.
 
+## Push notifications (one-time setup)
+
+Reminders work out of the box **while the app is open**. To also get pushes when the
+app/phone screen is closed:
+
+1. **VAPID key (client)** — Firebase console → Project settings → **Cloud Messaging** →
+   Web Push certificates → Generate/copy the **Key pair** →
+   put it in `.env` as `VITE_FIREBASE_VAPID_KEY` (and in Vercel env vars).
+2. **Service account (server)** — Firebase console → Project settings →
+   **Service accounts** → Generate new private key. Open the downloaded JSON, put the
+   whole thing **on one line** into the Vercel env var `FIREBASE_SERVICE_ACCOUNT`.
+3. **Cron secret** — set `CRON_SECRET` in Vercel env vars to any long random string.
+4. **Cron trigger** — in your GitHub repo: Settings → Secrets and variables → Actions →
+   add `REMINDER_URL` (`https://<your-app>.vercel.app/api/send-reminders`) and
+   `CRON_SECRET` (same value as step 3). The included workflow
+   `.github/workflows/reminders.yml` then pings the endpoint every 15 minutes —
+   it checks who has an unfinished task and pushes to their devices via FCM.
+5. In the app: 🔔 → **Enable notifications** on each device you want pushed.
+
+> iPhone note: iOS only delivers web push to sites added to the Home Screen
+> (Share → Add to Home Screen). Android Chrome works directly.
+
 ## Deploy to Vercel
 
 1. Push this folder to a GitHub repo (`.env` is git-ignored — it will NOT be uploaded).
@@ -58,7 +90,11 @@ preset, set *Signing mode: Unsigned* in Cloudinary → Settings → Upload → U
 ```
 users/{uid}
   name, email, createdAt
-  days:          { "2026-07-12": { meals:{}, gym:{}, fight:{}, water: 0, weight: "" }, ... }
+  fcmTokens:     [ "<device push token>", ... ]
+  days:          { "2026-07-12": { meals:{}, gym:{}, fight:{}, water: 0, weight: "",
+                                   gymWeights: { barbell_bench_press: "40" } }, ... }
   monthlyPhotos: { "2026-07": "<cloudinary url>", ... }
   ideals:        { gapryong: "<url>", gun: "<url>", james: "<url>" }
+  sectionImages: { "gym-push": "<url>", "fight-1": "<url>", "meals-1": "<url>", ... }
+  meta/notifLog  (subcollection doc written by the server so pushes never duplicate)
 ```
