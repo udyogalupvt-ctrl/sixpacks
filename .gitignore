@@ -8,6 +8,10 @@ dist/
 .env
 .env.local
 .env.*.local
+service-account.json
+*-service-account.json
+serviceAccount*.json
+notification.txt
 
 # editor / OS
 .vscode/

@@ -11,7 +11,11 @@
 // Every send is logged in users/{uid}/meta/notifLog so retries never duplicate.
 
 import crypto from "node:crypto";
-import admin from "firebase-admin";
+// Modular imports — the `import admin from "firebase-admin"` default leaves
+// admin.credential/.firestore/.messaging undefined under ESM (which Vercel runs).
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import { REMINDERS, toMins, isEntryDone, startMessage, endMessage } from "../src/schedule.js";
 import { emptyDay } from "../src/plan.js";
 
@@ -19,9 +23,9 @@ const WINDOW_MIN = 16;
 const IST_OFFSET_MS = 330 * 60000; // UTC+5:30
 
 function initAdmin() {
-  if (!admin.apps.length) {
+  if (!getApps().length) {
     const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({ credential: admin.credential.cert(sa) });
+    initializeApp({ credential: cert(sa) });
   }
 }
 
@@ -40,7 +44,8 @@ export default async function handler(req, res) {
   }
 
   initAdmin();
-  const db = admin.firestore();
+  const db = getFirestore();
+  const messaging = getMessaging();
 
   // Vercel functions run in UTC, so a UTC+5:30-shifted Date reads out IST
   // components through plan.js's local getters.
@@ -84,7 +89,7 @@ export default async function handler(req, res) {
       const msg = phase === "start" ? startMessage(entry, now) : endMessage(entry);
       for (const token of tokens) {
         try {
-          await admin.messaging().send({
+          await messaging.send({
             token,
             notification: { title: msg.title, body: msg.body },
             webpush: {
@@ -98,7 +103,7 @@ export default async function handler(req, res) {
             err.code === "messaging/registration-token-not-registered" ||
             err.code === "messaging/invalid-argument"
           ) {
-            await snap.ref.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(token) });
+            await snap.ref.update({ fcmTokens: FieldValue.arrayRemove(token) });
           }
         }
       }
