@@ -30,22 +30,98 @@ export const CARDIO_BY_PHASE = {
   3: "Treadmill 20–25 min (incline / intervals — shred fuel)",
 };
 
-export const FIGHT = {
-  1: {
-    title: "FIGHT BASICS",
-    drills: [["Rope skipping", "3 × 3 min"], ["Stance + footwork drills", "10 min"], ["Shadowboxing (jab, cross)", "4 × 2 min rounds"], ["Wall push + neck bridges (light)", "2 × 10"]],
-    note: "Learn the stance before the punch. Slow is smooth, smooth is fast.",
+// ---------- FIGHT TRAINING (morning session, ~05:30–07:30) ----------
+// A real 27-week curriculum: the block changes every 3 weeks, and each fight
+// day trains a different quality — Mon = technique, Wed = drills & bag,
+// Fri = conditioning. You are never repeating "FIGHT BASICS" for two months.
+// Every session = WARM-UP → MAIN WORK → COOL-DOWN.
+
+export const SESSION_TYPE = { 1: "technique", 3: "drills", 5: "conditioning" };
+export const SESSION_LABEL = {
+  technique: "TECHNIQUE",
+  drills: "DRILLS & BAG",
+  conditioning: "CONDITIONING",
+};
+
+// Warm-up scales with the block tier (1 = early, 2 = mid, 3 = late).
+const FIGHT_WARMUP = {
+  1: [["Rope skipping", "3 × 2 min"], ["Neck + joint rotations", "3 min"], ["Dynamic stretch (hips, shoulders)", "5 min"], ["Loose shadowboxing", "2 × 2 min"]],
+  2: [["Rope skipping", "4 × 3 min"], ["Neck bridges (light) + rotations", "4 min"], ["Dynamic stretch + hip openers", "5 min"], ["Shadowboxing (loose)", "3 × 2 min"]],
+  3: [["Rope skipping (add double-unders)", "5 × 3 min"], ["Neck + core activation", "5 min"], ["Dynamic stretch", "5 min"], ["Shadowboxing (fast hands)", "3 × 3 min"]],
+};
+
+const COOLDOWN = [["Cool-down: stretch + breathing", "10 min"]];
+
+export const FIGHT_BLOCKS = [
+  {
+    weeks: [1, 3], tier: 1, title: "FOUNDATION — STANCE & GUARD",
+    note: "Gapryong didn't start with a knockout. Learn to stand before you learn to strike.",
+    technique: [["Orthodox stance holds", "5 × 1 min"], ["Guard position (elbows in, chin down)", "10 min"], ["Jab from stance", "4 × 20"], ["Step-drag footwork", "10 min"]],
+    drills: [["Mirror footwork (fwd/back/lateral)", "4 × 2 min"], ["Jab–cross on air", "5 × 20"], ["Pivot drills", "3 × 10 / side"], ["Shadowbox (jab only)", "4 × 2 min"]],
+    conditioning: [["Shadowbox rounds", "5 × 2 min"], ["Burpees", "3 × 10"], ["Plank", "3 × 45 s"], ["Bodyweight squats", "3 × 20"]],
   },
-  2: {
-    title: "FIGHT SKILLS",
-    drills: [["Rope skipping", "3 × 3 min"], ["Shadowboxing (add hooks, uppercuts, front kick)", "6 × 2 min rounds"], ["Heavy bag (if available)", "4 × 2 min"], ["Footwork ladder / pivots", "10 min"]],
-    note: "Join a local boxing/karate/MMA academy if you can — a coach beats any app.",
+  {
+    weeks: [4, 6], tier: 1, title: "THE JAB & CROSS",
+    note: "The jab wins fights. Snap it out, snap it back — never leave it hanging.",
+    technique: [["Jab mechanics (snap + return)", "5 × 20"], ["Cross with hip rotation", "5 × 20"], ["1–2 combo", "6 × 15"], ["Range finding vs wall", "10 min"]],
+    drills: [["1–2 on bag / air", "6 × 2 min"], ["Jab while circling", "4 × 2 min"], ["Double jab → cross", "5 × 15"], ["Shadowbox (1–2 focus)", "5 × 2 min"]],
+    conditioning: [["Sprawls", "4 × 10"], ["Shadowbox rounds", "6 × 2 min"], ["Push-up + shoulder tap", "3 × 20"], ["Mountain climbers", "3 × 30 s"]],
   },
-  3: {
-    title: "FIGHT CONDITIONING",
-    drills: [["Rope skipping", "4 × 3 min"], ["Shadowboxing (full combos)", "6 × 2 min rounds"], ["Heavy bag power rounds", "4 × 2 min"], ["Burpee + sprawl finisher", "3 × 10"]],
-    note: "This doubles as your Phase-3 HIIT. Spar only under a coach — never untrained.",
+  {
+    weeks: [7, 9], tier: 1, title: "HOOKS, UPPERCUTS & COMBOS",
+    note: "Now the arsenal opens. Power comes from the ground and the hips — not the arm.",
+    technique: [["Lead hook mechanics", "5 × 15"], ["Rear uppercut", "5 × 15"], ["1–2–3 combo", "6 × 12"], ["Body hook", "4 × 15"]],
+    drills: [["1–2–3–2 combos", "6 × 2 min"], ["Bag work (combinations)", "5 × 2 min"], ["Level change + body shot", "4 × 12"], ["Shadowbox (full arsenal)", "5 × 2 min"]],
+    conditioning: [["Heavy bag power rounds", "5 × 2 min"], ["Burpee + sprawl", "4 × 10"], ["Russian twists", "3 × 30"], ["Jump squats", "3 × 15"]],
   },
+  {
+    weeks: [10, 12], tier: 2, title: "DEFENSE — SLIP, ROLL, COUNTER",
+    note: "Gun Park doesn't get hit. Hitting is half the game — not being there is the other half.",
+    technique: [["Slip (inside / outside)", "5 × 20"], ["Roll under", "5 × 20"], ["Parry + counter", "5 × 15"], ["Catch + return", "4 × 15"]],
+    drills: [["Slip-rope drill", "4 × 3 min"], ["Slip → counter 1–2", "6 × 12"], ["Bag defense circle", "5 × 2 min"], ["Shadowbox (defense focus)", "6 × 2 min"]],
+    conditioning: [["Defensive rounds (slip + move)", "6 × 2 min"], ["Burpees", "4 × 12"], ["Plank + shoulder tap", "3 × 45 s"], ["Sprint intervals", "6 × 30 s"]],
+  },
+  {
+    weeks: [13, 15], tier: 2, title: "KICKS & DISTANCE",
+    note: "Control the distance and you control the fight. Check the kick or wear it.",
+    technique: [["Teep / front kick", "5 × 15 / leg"], ["Low roundhouse kick", "5 × 15 / leg"], ["Checking kicks", "4 × 10"], ["Distance in-and-out drill", "10 min"]],
+    drills: [["Kick–punch combos", "6 × 2 min"], ["Bag kicks (power)", "5 × 2 min"], ["Distance management (in-out)", "5 × 2 min"], ["Shadowbox with kicks", "5 × 2 min"]],
+    conditioning: [["Kick rounds on bag", "6 × 2 min"], ["Jump lunges", "3 × 20"], ["Burpees", "4 × 12"], ["Core circuit", "3 rounds"]],
+  },
+  {
+    weeks: [16, 18], tier: 2, title: "POWER — HEAVY BAG",
+    note: "James Lee built the body. Now build the shot that ends it. Drive from the floor.",
+    technique: [["Power cross (hip drive)", "5 × 12"], ["Hook power mechanics", "5 × 12"], ["Body–head combination", "6 × 12"], ["Clinch posture basics", "10 min"]],
+    drills: [["Heavy bag power rounds", "6 × 3 min"], ["Combo ladder (2→4→6 punches)", "5 × 2 min"], ["Bag + footwork", "5 × 2 min"], ["Knee strikes in clinch", "4 × 15"]],
+    conditioning: [["All-out bag rounds", "6 × 2 min"], ["Burpee finisher", "4 × 15"], ["Weighted core", "3 × 20"], ["Farmer walk", "3 × 40 m"]],
+  },
+  {
+    weeks: [19, 21], tier: 3, title: "SPEED & REACTION",
+    note: "Slow is smooth, smooth is fast — you earned smooth. Now get fast.",
+    technique: [["Speed jabs", "6 × 30 s"], ["Reaction drill (wall ball / partner)", "10 min"], ["Counter off the jab", "6 × 12"], ["Feint + strike", "5 × 15"]],
+    drills: [["Speed rounds (hands only)", "6 × 2 min"], ["Shadowbox sprint rounds", "6 × 90 s"], ["Combo reaction on bag", "5 × 2 min"], ["Footwork ladder", "10 min"]],
+    conditioning: [["HIIT rounds (30 s on / 30 s off)", "10 rounds"], ["Burpee + sprawl", "4 × 15"], ["Core circuit", "4 rounds"], ["Skipping sprints", "5 × 1 min"]],
+  },
+  {
+    weeks: [22, 24], tier: 3, title: "FIGHT CONDITIONING",
+    note: "Technique dies when the lungs die. Train tired — that's where the real fight lives.",
+    technique: [["Technique under fatigue", "5 × 2 min"], ["Clinch + knees", "5 × 15"], ["Counter combinations", "6 × 12"], ["Movement drills", "10 min"]],
+    drills: [["Bag rounds (high volume)", "8 × 2 min"], ["Combo + defense flow", "6 × 2 min"], ["Sprawl + strike", "5 × 10"], ["Shadowbox rounds", "6 × 3 min"]],
+    conditioning: [["Fight-pace rounds", "8 × 3 min"], ["Burpees", "5 × 15"], ["Sprints", "8 × 30 s"], ["Core finisher", "4 rounds"]],
+  },
+  {
+    weeks: [25, 27], tier: 3, title: "PEAK — ROUNDS & SPARRING",
+    note: "This is the man you set out to become. Spar ONLY under a coach — never untrained.",
+    technique: [["Full-round shadow (all tools)", "6 × 3 min"], ["Space / ring control", "10 min"], ["Counters + angles", "6 × 12"], ["Clinch escapes", "5 × 10"]],
+    drills: [["Controlled sparring (COACH ONLY)", "5 × 3 min"], ["Heavy bag championship rounds", "6 × 3 min"], ["Pad work", "6 × 3 min"], ["Reaction + counter", "5 × 2 min"]],
+    conditioning: [["Fight simulation rounds", "5 × 3 min"], ["Max burpees", "5 × 20"], ["Sprint finisher", "10 × 30 s"], ["Full core circuit", "5 rounds"]],
+  },
+];
+
+// Which 3-week block is this date in? (week 1 = days 1–7)
+export const fightBlockFor = (dt) => {
+  const w = Math.max(1, Math.ceil(dayNumber(dt) / 7));
+  return FIGHT_BLOCKS.find((b) => w >= b.weeks[0] && w <= b.weeks[1]) || FIGHT_BLOCKS[FIGHT_BLOCKS.length - 1];
 };
 
 export const WORKOUTS = {
@@ -165,11 +241,22 @@ export const gymItemsFor = (dt) => {
   return items;
 };
 
-// Fight training drills for a given date ([] on non-fight days).
+// Fight session for a given date ([] on non-fight days).
+// Structure: WARM-UP → today's MAIN work (technique / drills / conditioning)
+// → COOL-DOWN. Header rows have id: null, like the gym card.
 export const fightItemsFor = (dt) => {
   if (!FIGHT_DAYS.includes(dt.getDay())) return [];
-  const phase = phaseOf(dt);
-  return FIGHT[phase.n].drills.map(([name, sets], i) => ({ id: `f${i}`, name, sets }));
+  const block = fightBlockFor(dt);
+  const type = SESSION_TYPE[dt.getDay()];
+  const rows = [];
+  const section = (header, list) => {
+    rows.push({ id: null, header });
+    list.forEach(([name, sets]) => rows.push({ name, sets }));
+  };
+  section("WARM-UP", FIGHT_WARMUP[block.tier]);
+  section(SESSION_LABEL[type], block[type]);
+  section("COOL-DOWN", COOLDOWN);
+  return rows.map((r, i) => (r.id === null ? r : { ...r, id: `f${i}` }));
 };
 
 const allChecked = (ids, map) => ids.length > 0 && ids.every((id) => map?.[id]);

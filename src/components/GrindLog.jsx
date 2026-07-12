@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { C, FONT_DISPLAY, FONT_BODY } from "../theme";
 import {
   TOTAL_DAYS, PROTEIN_TARGET, WATER_TARGET, FIGHT_DAYS,
-  WORKOUTS, FIGHT, buildMeals,
+  WORKOUTS, buildMeals, fightBlockFor, SESSION_TYPE, SESSION_LABEL,
   toKey, clampDate, dayNumber, phaseOf, fmtDate, emptyDay, slugOf,
   gymItemsFor, fightItemsFor, isDayComplete,
 } from "../plan";
@@ -11,9 +11,8 @@ import SectionImage from "./SectionImage";
 
 const parseKey = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
 
-export default function GrindLog({ profile, save }) {
+export default function GrindLog({ profile, save, view, setView, sharedImages = {}, saveShared }) {
   const days = profile?.days || {};
-  const [view, setView] = useState(() => clampDate(new Date()));
   const [showLifts, setShowLifts] = useState(true);
 
   const key = toKey(view);
@@ -23,7 +22,8 @@ export default function GrindLog({ profile, save }) {
   const phase = phaseOf(view);
   const workout = WORKOUTS[dow];
   const isFightDay = FIGHT_DAYS.includes(dow);
-  const fight = FIGHT[phase.n];
+  const fight = fightBlockFor(view);
+  const fightSessionLabel = SESSION_LABEL[SESSION_TYPE[dow]];
   const meals = buildMeals(dow, phase.n);
   const daysLeft = TOTAL_DAYS - dayNumber(clampDate(new Date()));
 
@@ -33,7 +33,7 @@ export default function GrindLog({ profile, save }) {
   const gymAllDone = gymIds.length > 0 && gymDoneCount === gymIds.length;
 
   const fightItems = fightItemsFor(view);
-  const fightIds = fightItems.map((x) => x.id);
+  const fightIds = fightItems.filter((x) => x.id).map((x) => x.id);
   const fightDoneCount = fightIds.filter((id) => rec.fight?.[id]).length;
   const fightAllDone = fightIds.length > 0 && fightDoneCount === fightIds.length;
 
@@ -57,10 +57,14 @@ export default function GrindLog({ profile, save }) {
       });
     });
 
-  const sectionImages = profile?.sectionImages || {};
+  // Personal overrides win over the shared pool (see SectionImage).
+  const personalImages = profile?.sectionImages || {};
+  const fightWeek = Math.max(1, Math.ceil(dayNum / 7));
+  const fightKey = slugOf(fight.title); // one image per 3-week fight block
 
   // ----- stats across all logged days -----
   const today = clampDate(new Date());
+  const isToday = toKey(view) === toKey(today);
   const elapsed = dayNumber(today);
   let completedDays = 0, workoutsDone = 0, fightsDone = 0;
   Object.entries(days).forEach(([k, r]) => {
@@ -153,6 +157,11 @@ export default function GrindLog({ profile, save }) {
         <NavBtn onClick={() => setView(clampDate(new Date()))} accent>Today</NavBtn>
         <NavBtn onClick={() => move(1)} disabled={dayNum >= TOTAL_DAYS}>Next ▶</NavBtn>
       </div>
+      {!isToday && (
+        <div style={{ fontSize: 11, color: C.gold, marginTop: -8, marginBottom: 14, textAlign: "center" }}>
+          Viewing {dayNum < dayNumber(clampDate(new Date())) ? "a past" : "an upcoming"} day — tap <b>Today</b> to come back.
+        </div>
+      )}
 
       {/* ---- gym session (lifts + cardio, tracked like meals) ---- */}
       <Card>
@@ -161,7 +170,13 @@ export default function GrindLog({ profile, save }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <SectionLabel>GYM SESSION {gymIds.length > 0 && <span style={{ color: gymAllDone ? C.green : C.dim }}>· {gymDoneCount}/{gymIds.length}</span>}</SectionLabel>
               {!workout.rest && (
-                <SectionImage imgKey={`gym-${workout.key}`} url={sectionImages[`gym-${workout.key}`]} save={save} label={`${workout.name} session`} />
+                <SectionImage
+                  imgKey={`gym-${workout.key}`}
+                  personal={personalImages[`gym-${workout.key}`]}
+                  shared={sharedImages[`gym-${workout.key}`]}
+                  save={save} saveShared={saveShared}
+                  label={`${workout.name} session`}
+                />
               )}
             </div>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, marginTop: 4, color: workout.rest ? C.dim : C.bone }}>
@@ -234,12 +249,21 @@ export default function GrindLog({ profile, save }) {
       {isFightDay && (
         <Card highlight>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <SectionLabel color={C.ember}>🥊 FIGHT TRAINING · {fightDoneCount}/{fightIds.length}</SectionLabel>
-                <SectionImage imgKey={`fight-${phase.n}`} url={sectionImages[`fight-${phase.n}`]} save={save} label={fight.title} />
+                <SectionLabel color={C.ember}>🥊 FIGHT · 05:30 · {fightDoneCount}/{fightIds.length}</SectionLabel>
+                <SectionImage
+                  imgKey={`fight-${fightKey}`}
+                  personal={personalImages[`fight-${fightKey}`]}
+                  shared={sharedImages[`fight-${fightKey}`]}
+                  save={save} saveShared={saveShared}
+                  label={`${fight.title} — ${fightSessionLabel}`}
+                />
               </div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, marginTop: 4 }}>{fight.title}</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, marginTop: 4, lineHeight: 1.1 }}>{fight.title}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: C.gold, marginTop: 3 }}>
+                {fightSessionLabel} DAY · WEEK {fightWeek}
+              </div>
             </div>
             <button
               onClick={markAllFight}
@@ -254,15 +278,21 @@ export default function GrindLog({ profile, save }) {
             </button>
           </div>
           <div style={{ marginTop: 8, borderTop: `1px solid ${C.line}`, paddingTop: 2 }}>
-            {fightItems.map((item) => (
-              <CheckRow
-                key={item.id}
-                done={!!rec.fight?.[item.id]}
-                onToggle={() => toggleFight(item.id)}
-                title={item.name}
-                right={item.sets}
-              />
-            ))}
+            {fightItems.map((item, i) =>
+              item.id === null ? (
+                <div key={`fh${i}`} style={{ fontSize: 10, letterSpacing: "0.2em", color: C.ember, fontWeight: 700, margin: "12px 0 0" }}>
+                  {item.header}
+                </div>
+              ) : (
+                <CheckRow
+                  key={item.id}
+                  done={!!rec.fight?.[item.id]}
+                  onToggle={() => toggleFight(item.id)}
+                  title={item.name}
+                  right={item.sets}
+                />
+              )
+            )}
             <div style={{ fontSize: 11, color: C.gold, marginTop: 10 }}>{fight.note}</div>
           </div>
         </Card>
@@ -275,7 +305,13 @@ export default function GrindLog({ profile, save }) {
             <SectionLabel>
               MEALS — {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][dow]} (dairy-free)
             </SectionLabel>
-            <SectionImage imgKey={`meals-${dow}`} url={sectionImages[`meals-${dow}`]} save={save} label={`${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dow]} meals`} />
+            <SectionImage
+              imgKey={`meals-${dow}`}
+              personal={personalImages[`meals-${dow}`]}
+              shared={sharedImages[`meals-${dow}`]}
+              save={save} saveShared={saveShared}
+              label={`${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dow]} meals`}
+            />
           </div>
           <div style={{ fontSize: 12, color: C.dim, flexShrink: 0 }}>{kcalIn} kcal logged</div>
         </div>

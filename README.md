@@ -9,14 +9,29 @@ training (every drill), meals (dairy-free plan), water (4 L), weight (optional).
 A day only counts toward your streak/adherence when meals + gym + fight (on fight days)
 + water are ALL done.
 
+**Fight training — 27-week curriculum.** The plan advances every 3 weeks through 9 blocks
+(Foundation → Jab & Cross → Hooks/Uppercuts → Defense → Kicks & Distance → Power →
+Speed & Reaction → Fight Conditioning → Peak/Sparring), and each fight day trains a
+different quality: **Mon = technique, Wed = drills & bag, Fri = conditioning.** Every
+session is WARM-UP → main work → COOL-DOWN, run in the morning window (05:30–07:30).
+
+**Calendar (📅 in the top bar).** Month grid across the whole grind — every day shows its
+workout (PUSH/PULL/LEGS/REST) and a 🥊 on fight days, green when fully logged. Tap any
+day, past or future, to open its complete plan.
+
 **Transform tab:** upload one photo per month (Jul '26 → Jan '27) and photos of your three
 ideals (Gapryong Kim, Gun Park, James Lee) — compare yourself against them every day.
 Each Gym / Fight / Meals card also has a tiny 🖼 icon to attach an AI-generated
-visualization image (tap to view / replace / remove).
+visualization image. **Sharing model:** uploading into an *empty* slot saves to the
+**shared pool** so every grinder sees it (upload once, you both benefit). **Replacing**
+an existing image saves a **personal override** that changes it only for you — the
+lightbox tags each image `SHARED` or `YOURS ONLY`, and "Reset to shared" undoes an
+override.
 
 **Reminders (🔔 in the top bar):** built around the founder schedule — fight training
-06:30 (Mon/Wed/Fri), meals through the day, work 10–6, gym 18:00–21:00 (Mon–Sat),
-day-check 22:30. You get a notification when a task starts, and a call-out when its
+05:30–07:30 incl. warm-up (Mon/Wed/Fri), meals through the day, work 10–6,
+gym 18:00–21:00 (Mon–Sat), day-check 22:30. The fight alert names that day's block and
+session type (e.g. "DEFENSE — SLIP, ROLL, COUNTER — DRILLS & BAG day"). You get a notification when a task starts, and a call-out when its
 window ends without being marked done in the app. Every entry can also be added to
 Google Calendar (single tap) or imported all at once via the .ics download.
 
@@ -95,6 +110,12 @@ users/{uid}
                                    gymWeights: { barbell_bench_press: "40" } }, ... }
   monthlyPhotos: { "2026-07": "<cloudinary url>", ... }
   ideals:        { gapryong: "<url>", gun: "<url>", james: "<url>" }
-  sectionImages: { "gym-push": "<url>", "fight-1": "<url>", "meals-1": "<url>", ... }
+  sectionImages: { "gym-push": "<url>", ... }   <- PERSONAL overrides only
   meta/notifLog  (subcollection doc written by the server so pushes never duplicate)
+
+shared/sectionImages                             <- SHARED pool, all users
+  { "gym-push": "<url>", "fight-kicks_distance": "<url>", "meals-1": "<url>", ... }
 ```
+
+> Re-publish [`firestore.rules`](firestore.rules) after this update — it now also grants
+> signed-in users read/write on the `shared/` doc.

@@ -7,8 +7,15 @@ import AuthScreen from "./components/AuthScreen";
 import GrindLog from "./components/GrindLog";
 import Transform from "./components/Transform";
 import Reminders from "./components/Reminders";
+import Calendar from "./components/Calendar";
 import useReminders from "./useReminders";
 import { registerSW } from "./push";
+import { clampDate } from "./plan";
+
+// Section images (gym / fight / meals visualizations) live in one shared doc so
+// an upload by either grinder helps the other. A personal override in
+// users/{uid}.sectionImages always wins for that user.
+const SHARED_IMAGES = ["shared", "sectionImages"];
 
 const saveErrText = (e) =>
   e?.code === "permission-denied"
@@ -22,6 +29,9 @@ export default function App() {
   const [tab, setTab] = useState("today");
   const [saveErr, setSaveErr] = useState("");
   const [showReminders, setShowReminders] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [view, setView] = useState(() => clampDate(new Date())); // day being viewed
+  const [sharedImages, setSharedImages] = useState({});
   const initialized = useRef(false);
 
   useEffect(() => onAuthStateChanged(auth, (u) => setUser(u)), []);
@@ -57,12 +67,30 @@ export default function App() {
     return unsub;
   }, [user]);
 
+  // Live-sync the shared section-image pool (visible to every signed-in user).
+  useEffect(() => {
+    if (!user) { setSharedImages({}); return; }
+    return onSnapshot(
+      doc(db, ...SHARED_IMAGES),
+      (snap) => setSharedImages(snap.exists() ? snap.data() : {}),
+      () => setSharedImages({}) // never block the app on the shared pool
+    );
+  }, [user]);
+
   // Fire-and-forget merge write: with the offline cache enabled, the local
   // snapshot updates instantly and the promise resolves only on server ack.
   const save = useCallback((patch) => {
     if (!auth.currentUser) return;
     setSaveErr("");
     setDoc(doc(db, "users", auth.currentUser.uid), patch, { merge: true })
+      .catch((e) => setSaveErr(saveErrText(e)));
+  }, []);
+
+  // Write to the shared pool — everyone sees it.
+  const saveShared = useCallback((patch) => {
+    if (!auth.currentUser) return;
+    setSaveErr("");
+    setDoc(doc(db, ...SHARED_IMAGES), patch, { merge: true })
       .catch((e) => setSaveErr(saveErrText(e)));
   }, []);
 
@@ -87,6 +115,14 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 10 }}>
           <button
+            onClick={() => setShowCalendar(true)}
+            aria-label="Calendar"
+            title="Calendar — browse any day's plan"
+            style={{ background: "none", border: `1px solid ${C.line}`, color: C.dim, borderRadius: 6, padding: "4px 9px", fontSize: 12, fontFamily: FONT_BODY }}
+          >
+            📅
+          </button>
+          <button
             onClick={() => setShowReminders(true)}
             aria-label="Reminders"
             title="Reminders"
@@ -104,11 +140,19 @@ export default function App() {
       </div>
 
       {showReminders && <Reminders user={user} onClose={() => setShowReminders(false)} />}
+      {showCalendar && (
+        <Calendar
+          days={profile?.days || {}}
+          view={view}
+          onPick={(d) => { setView(d); setTab("today"); setShowCalendar(false); }}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
 
       {/* active page */}
       <div style={{ paddingBottom: 86 }}>
         {tab === "today"
-          ? <GrindLog profile={profile} save={save} />
+          ? <GrindLog profile={profile} save={save} view={view} setView={setView} sharedImages={sharedImages} saveShared={saveShared} />
           : <Transform profile={profile} save={save} name={name} />}
       </div>
 

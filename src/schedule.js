@@ -7,7 +7,8 @@
 // runs in the app AND in the server push endpoint (api/send-reminders.js).
 
 import {
-  WORKOUTS, FIGHT, buildMeals, phaseOf,
+  WORKOUTS, buildMeals, phaseOf,
+  fightBlockFor, SESSION_TYPE, SESSION_LABEL,
   gymDoneFor, fightDoneFor, isDayComplete,
 } from "./plan.js";
 
@@ -18,7 +19,8 @@ const FIGHT_DAYS = [1, 3, 5];
 export const TIMEZONE = "Asia/Kolkata";
 
 export const REMINDERS = [
-  { id: "fight",  icon: "🥊", label: "Fight training",   days: FIGHT_DAYS, start: "06:30", end: "07:30", check: "fight" },
+  // Morning fight block (5–8 window): warm-up is part of the session.
+  { id: "fight",  icon: "🥊", label: "Fight training",   days: FIGHT_DAYS, start: "05:30", end: "07:30", check: "fight" },
   { id: "bfast",  icon: "🍳", label: "Breakfast",        days: ALL,        start: "08:30", end: "09:15", check: "meal:bfast" },
   { id: "lunch",  icon: "🍛", label: "Lunch",            days: ALL,        start: "13:00", end: "14:00", check: "meal:lunch" },
   { id: "snack",  icon: "🥜", label: "Snack",            days: ALL,        start: "16:30", end: "17:00", check: "meal:snack" },
@@ -54,7 +56,9 @@ export const startMessage = (entry, dt) => {
   if (entry.check === "gym") {
     body = `${WORKOUTS[dt.getDay()].name} + treadmill cardio. The 6–9 window starts now — log every lift.`;
   } else if (entry.check === "fight") {
-    body = `${FIGHT[phaseOf(dt).n].title} — win the morning before the startup owns your day.`;
+    const block = fightBlockFor(dt);
+    const label = SESSION_LABEL[SESSION_TYPE[dt.getDay()]];
+    body = `${block.title} — ${label} day. Warm up first (rope + mobility), then work. Win the morning before the startup owns your day.`;
   } else if (entry.check?.startsWith("meal:")) {
     const meal = buildMeals(dt.getDay(), phaseOf(dt).n).find((m) => m.id === entry.check.slice(5));
     body = meal ? meal.food : "Fuel on schedule.";
