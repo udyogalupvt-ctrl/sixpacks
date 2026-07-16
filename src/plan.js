@@ -228,10 +228,30 @@ export const emptyDay = () => ({ meals: {}, gym: {}, fight: {}, water: 0, weight
 export const slugOf = (name) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
+export const getGymOffset = (dt, days = {}) => {
+  let offset = 0;
+  const targetKey = toKey(dt);
+  Object.entries(days).forEach(([k, r]) => {
+    if (k < targetKey && r.passGym) offset++;
+  });
+  return offset;
+};
+
+export const getFightOffset = (dt, days = {}) => {
+  let offset = 0;
+  const targetKey = toKey(dt);
+  Object.entries(days).forEach(([k, r]) => {
+    if (k < targetKey && r.passFight) offset++;
+  });
+  return offset;
+};
+
 // ---------- per-day session item lists ----------
 // Gym session items (lifts + cardio) for a given date. Header rows have id: null.
-export const gymItemsFor = (dt) => {
-  const workout = WORKOUTS[dt.getDay()];
+export const gymItemsFor = (dt, days = {}) => {
+  const offset = getGymOffset(dt, days);
+  const effectiveDt = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - offset);
+  const workout = WORKOUTS[effectiveDt.getDay()];
   if (!workout.key) return [];
   const phase = phaseOf(dt);
   const items = LIFTS[workout.key][liftPhase(phase.n)].map(([name, sets], i) =>
@@ -244,10 +264,12 @@ export const gymItemsFor = (dt) => {
 // Fight session for a given date ([] on non-fight days).
 // Structure: WARM-UP → today's MAIN work (technique / drills / conditioning)
 // → COOL-DOWN. Header rows have id: null, like the gym card.
-export const fightItemsFor = (dt) => {
-  if (!FIGHT_DAYS.includes(dt.getDay())) return [];
+export const fightItemsFor = (dt, days = {}) => {
+  const offset = getFightOffset(dt, days);
+  const effectiveDt = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - offset);
+  if (!FIGHT_DAYS.includes(effectiveDt.getDay())) return [];
   const block = fightBlockFor(dt);
-  const type = SESSION_TYPE[dt.getDay()];
+  const type = SESSION_TYPE[effectiveDt.getDay()];
   const rows = [];
   const section = (header, list) => {
     rows.push({ id: null, header });
@@ -261,23 +283,25 @@ export const fightItemsFor = (dt) => {
 
 const allChecked = (ids, map) => ids.length > 0 && ids.every((id) => map?.[id]);
 
-export const gymDoneFor = (dt, rec) => {
-  const ids = gymItemsFor(dt).filter((x) => x.id).map((x) => x.id);
+export const gymDoneFor = (dt, rec, days = {}) => {
+  if (rec?.passGym) return true;
+  const ids = gymItemsFor(dt, days).filter((x) => x.id).map((x) => x.id);
   return ids.length === 0 ? true : allChecked(ids, rec?.gym);
 };
-export const fightDoneFor = (dt, rec) => {
-  const ids = fightItemsFor(dt).map((x) => x.id);
+export const fightDoneFor = (dt, rec, days = {}) => {
+  if (rec?.passFight) return true;
+  const ids = fightItemsFor(dt, days).map((x) => x.id);
   return ids.length === 0 ? true : allChecked(ids, rec?.fight);
 };
 
 // A day counts toward progress when meals + gym session (incl. cardio) +
 // fight training (on fight days) + water are all done. Weight is optional.
-export const isDayComplete = (rec, dt) => {
+export const isDayComplete = (rec, dt, days = {}) => {
   if (!rec) return false;
   const mealIds = buildMeals(dt.getDay(), 1).map((m) => m.id);
   const mealsDone = mealIds.every((id) => rec.meals && rec.meals[id]);
   const waterDone = (rec.water || 0) >= WATER_TARGET;
-  return mealsDone && gymDoneFor(dt, rec) && fightDoneFor(dt, rec) && waterDone;
+  return mealsDone && gymDoneFor(dt, rec, days) && fightDoneFor(dt, rec, days) && waterDone;
 };
 
 // ---------- transformation photo slots ----------
